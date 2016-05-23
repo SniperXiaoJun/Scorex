@@ -46,9 +46,9 @@ class LagonakiApplication(val settingsFilename: String) extends Application[Lago
 
   override lazy val apiTypes = Seq(
     typeOf[BlocksApiRoute[AccountTransaction]],
-    typeOf[TransactionsApiRoute],
+    typeOf[TransactionsApiRoute[LagonakiTransaction]],
     typeOf[NxtConsensusApiRoute[AccountTransaction]],
-    typeOf[WalletApiRoute],
+    typeOf[WalletApiRoute[LagonakiTransaction]],
     typeOf[PaymentApiRoute],
     typeOf[UtilsApiRoute],
     typeOf[PeersApiRoute],

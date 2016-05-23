@@ -1,23 +1,23 @@
 package scorex.transaction.state.database.blockchain
 
 import org.h2.mvstore.{MVMap, MVStore}
-import scorex.transaction.account.Account
 import scorex.block.Block
 import scorex.block.Block.BlockId
 import scorex.consensus.ConsensusModule
 import scorex.transaction.History.BlockchainScore
-import scorex.transaction.{Transaction, BlockChain, TransactionModule}
+import scorex.transaction.account.Account
+import scorex.transaction.{BlockChain, Transaction, TransactionModule}
 import scorex.utils.ScorexLogging
 
 import scala.collection.JavaConversions._
 import scala.util.{Failure, Success, Try}
 
 /**
-  * If no datafolder provided, blockchain lives in RAM (useful for tests)
-  */
-class StoredBlockchain[TX <: Transaction[_]](dataFolderOpt: Option[String])
-                      (implicit consensusModule: ConsensusModule[_, _, TX],
-                       transactionModule: TransactionModule[_, TX])
+ * If no datafolder provided, blockchain lives in RAM (useful for tests)
+ */
+class StoredBlockchain[TX <: Transaction[_]](db: MVStore)
+                                            (implicit consensusModule: ConsensusModule[_, _, TX],
+                                             transactionModule: TransactionModule[_, TX])
   extends BlockChain[TX] with ScorexLogging {
 
   case class BlockchainPersistence(database: MVStore) {
@@ -32,7 +32,6 @@ class StoredBlockchain[TX <: Transaction[_]](dataFolderOpt: Option[String])
       blocks.put(height, block.bytes)
       scoreMap.put(height, score() + block.consensusModule.blockScore(block)(block.transactionModule))
       signatures.put(height, block.uniqueId)
-      database.commit()
     }
 
     def readBlock(height: Int): Option[Block[TX]] =
@@ -41,7 +40,6 @@ class StoredBlockchain[TX <: Transaction[_]](dataFolderOpt: Option[String])
     def deleteBlock(height: Int): Unit = {
       blocks.remove(height)
       signatures.remove(height)
-      database.commit()
     }
 
     def contains(id: BlockId): Boolean = signatures.exists(_._2.sameElements(id))
@@ -54,16 +52,7 @@ class StoredBlockchain[TX <: Transaction[_]](dataFolderOpt: Option[String])
 
   }
 
-  private val blockStorage: BlockchainPersistence = {
-    val db = dataFolderOpt match {
-      case Some(dataFolder) => new MVStore.Builder().fileName(dataFolder + s"/blocks.mvstore").compress().open()
-      case None => new MVStore.Builder().open()
-    }
-    new BlockchainPersistence(db)
-  }
-
-
-  log.info(s"Initialized blockchain in $dataFolderOpt with ${height()} blocks")
+  private val blockStorage: BlockchainPersistence = new BlockchainPersistence(db)
 
   override private[transaction] def appendBlock(block: Block[TX]): Try[Seq[Block[TX]]] = synchronized {
     Try {

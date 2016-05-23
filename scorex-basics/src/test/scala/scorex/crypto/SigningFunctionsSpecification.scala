@@ -17,12 +17,12 @@ with Matchers {
         val acc = new PrivateKeyAccount(seed1)
         val sig = EllipticCurveImpl.sign(acc, message1)
         val rightKey = acc.publicKey
-        EllipticCurveImpl.verify(sig, message1, rightKey) should be (true)
+        EllipticCurveImpl.verify(sig, message1, rightKey) should be(true)
 
         val wrongKey = new PrivateKeyAccount(seed2).publicKey
-        EllipticCurveImpl.verify(sig, message1, wrongKey) shouldNot be (true)
+        EllipticCurveImpl.verify(sig, message1, wrongKey) shouldNot be(true)
 
-        EllipticCurveImpl.verify(sig, message2, rightKey) shouldNot be (true)
+        EllipticCurveImpl.verify(sig, message2, rightKey) shouldNot be(true)
       }
     }
   }

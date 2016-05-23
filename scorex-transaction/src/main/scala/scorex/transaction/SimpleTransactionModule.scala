@@ -1,6 +1,7 @@
 package scorex.transaction
 
 import com.google.common.primitives.Ints
+import org.h2.mvstore.MVStore
 import scorex.app.Application
 import scorex.block.{Block, BlockField}
 import scorex.network.message.Message
@@ -9,7 +10,7 @@ import scorex.settings.Settings
 import scorex.transaction.SimpleTransactionModule.StoredInBlock
 import scorex.transaction.account.{Account, PrivateKeyAccount, PublicKeyAccount}
 import scorex.transaction.state.database.UnconfirmedTransactionsDatabaseImpl
-import scorex.transaction.state.database.blockchain.{StoredBlockTree, StoredBlockchain, PersistentLagonakiState}
+import scorex.transaction.state.database.blockchain.{PersistentLagonakiState, StoredBlockTree, StoredBlockchain}
 import scorex.transaction.state.wallet.Payment
 import scorex.utils._
 import scorex.wallet.Wallet
@@ -34,28 +35,33 @@ class SimpleTransactionModule(implicit val settings: TransactionSettings with Se
 
   override val blockStorage = new BlockStorage[LagonakiTransaction] {
 
+    val db = settings.dataDirOpt match {
+      case Some(dataFolder) => new MVStore.Builder().fileName(dataFolder + s"/blockchain.dat").compress().open()
+      case None => new MVStore.Builder().open()
+    }
+
     override val MaxRollback: Int = settings.MaxRollback
 
     override val history: History[LagonakiTransaction] = settings.history match {
       case s: String if s.equalsIgnoreCase("blockchain") =>
-        new StoredBlockchain(settings.dataDirOpt)(consensusModule, instance)
+        new StoredBlockchain(db)(consensusModule, instance)
       case s: String if s.equalsIgnoreCase("blocktree") =>
         new StoredBlockTree(settings.dataDirOpt, MaxRollback)(consensusModule, instance)
       case s =>
         log.error(s"Unknown history storage: $s. Use StoredBlockchain...")
-        new StoredBlockchain(settings.dataDirOpt)(consensusModule, instance)
+        new StoredBlockchain(db)(consensusModule, instance)
     }
 
-    override val state = new PersistentLagonakiState(settings.dataDirOpt.map(_ + "/state.dat"))
+    override val state = new PersistentLagonakiState(db)
 
   }
 
   /**
-    * In Lagonaki, transaction-related data is just sequence of transactions. No Merkle-tree root of txs / state etc
-    *
-    * @param bytes - serialized sequence of transaction
-    * @return
-    */
+   * In Lagonaki, transaction-related data is just sequence of transactions. No Merkle-tree root of txs / state etc
+   *
+   * @param bytes - serialized sequence of transaction
+   * @return
+   */
   override def parseBytes(bytes: Array[Byte]): Try[TransactionsBlockField] = Try {
     bytes.isEmpty match {
       case true => TransactionsBlockField(Seq())

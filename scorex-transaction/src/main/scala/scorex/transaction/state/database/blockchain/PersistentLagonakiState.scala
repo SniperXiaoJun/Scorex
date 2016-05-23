@@ -23,18 +23,14 @@ import scala.util.Try
   *
   * Use apply method of PersistentLagonakiState object to create new instance
   */
-class PersistentLagonakiState(fileNameOpt: Option[String]) extends LagonakiState with ScorexLogging {
+class PersistentLagonakiState(db: MVStore) extends LagonakiState with ScorexLogging {
 
   val HeightKey = "height"
   val DataKey = "dataset"
   val LastStates = "lastStates"
   val IncludedTx = "includedTx"
 
-  private val db = fileNameOpt match {
-    case Some(fileName) => new MVStore.Builder().fileName(fileName).compress().open()
-    case None => new MVStore.Builder().open()
-  }
-  db.rollback()
+  if(db.getStoreVersion > 0) db.rollback()
 
   override lazy val version: Int = stateHeight
 
@@ -64,7 +60,6 @@ class PersistentLagonakiState(fileNameOpt: Option[String]) extends LagonakiState
       lastStates.put(ch._1, h)
       ch._2._2.foreach(t => includedTx.put(t.proof.bytes, h))
     }
-    db.commit()
   }
 
   override def rollbackTo(rollbackTo: Int): Try[PersistentLagonakiState] = Try {
@@ -213,11 +208,6 @@ class PersistentLagonakiState(fileNameOpt: Option[String]) extends LagonakiState
 
   def hash: Int = {
     (BigInt(FastCryptographicHash(toString.getBytes)) % Int.MaxValue).toInt
-  }
-
-  override def finalize(): Unit = {
-    db.close()
-    super.finalize()
   }
 
 }

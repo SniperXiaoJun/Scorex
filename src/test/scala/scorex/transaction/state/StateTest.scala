@@ -2,6 +2,7 @@ package scorex.transaction.state
 
 import java.io.File
 
+import org.h2.mvstore.MVStore
 import org.scalacheck.commands.Commands
 import org.scalacheck.{Gen, Prop}
 import org.scalatest.prop.{GeneratorDrivenPropertyChecks, PropertyChecks}
@@ -33,12 +34,13 @@ object StateTestSpec extends Commands {
   case class State(name: String, height: Int, included: Map[LagonakiTransaction, Int])
 
   case class Sut(fileName: String) {
-    val storedState = new PersistentLagonakiState(Some(fileName))
+    val db = new MVStore.Builder().fileName(fileName).compress().open()
+    val storedState = new PersistentLagonakiState(db)
     storedState.processBlock(new BlockMock(genesisTxs))
   }
 
   override def destroySut(sut: Sut): Unit = {
-    sut.storedState.finalize()
+    sut.db.close()
     new File(sut.fileName).delete()
   }
 

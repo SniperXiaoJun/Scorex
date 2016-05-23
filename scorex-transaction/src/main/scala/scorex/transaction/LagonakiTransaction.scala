@@ -2,12 +2,11 @@ package scorex.transaction
 
 import com.google.common.primitives.Ints
 import play.api.libs.json.Json
-import scorex.transaction.account.Account
 import scorex.crypto.encode.Base58
-
-import scorex.serialization.{BytesSerializable, BytesParseable}
+import scorex.serialization.{BytesParseable, BytesSerializable}
 import scorex.transaction.LagonakiTransaction.TransactionType
-import scorex.transaction.proof.{Signature25519, Proof}
+import scorex.transaction.account.Account
+import scorex.transaction.proof.{Proof, Signature25519}
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Try}
@@ -19,6 +18,7 @@ abstract class LagonakiTransaction(val transactionType: TransactionType.Value,
                                    override val fee: Long,
                                    override val timestamp: Long,
                                    val signature: Array[Byte]) extends AccountTransaction with BytesSerializable {
+
   import LagonakiTransaction._
 
   override lazy val proof: Proof = Signature25519(signature)
